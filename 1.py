@@ -1,152 +1,177 @@
+# import pygame
+
+# pygame.init()
+
+# background=pygame.display.set_mode((1200,900))
+# pygame.display.set_caption("Tetris")
+
+# x_pos=background.get_size()[0]//2
+# y_pos=background.get_size()[1]//2
+
+# play=True
+# while play:
+#     for event in pygame.event.get():
+#         if event.type==pygame.QUIT:
+#             play=False
+#         if event.type==pygame.KEYDOWN:
+#             if event.key==pygame.K_UP:
+#                 y_pos-=20
+#             if event.key==pygame.K_DOWN:
+#                 y_pos+=20
+#             if event.key==pygame.K_LEFT:
+#                 x_pos-=20
+#             if event.key==pygame.K_RIGHT:
+#                 x_pos+=20
+#     pygame.draw.circle(background,(0,0,255),(x_pos,y_pos),5)
+#     pygame.display.update()
+            
+# pygame.quit()
 import pygame
 import random
 
-# 게임 설정
-WIDTH, HEIGHT = 300, 600
+# 게임 보드의 크기 설정
+BOARD_WIDTH = 10
+BOARD_HEIGHT = 20
 BLOCK_SIZE = 30
-BOARD_WIDTH, BOARD_HEIGHT = 10, 20
-FPS = 30
+SCREEN_WIDTH = BOARD_WIDTH * BLOCK_SIZE
+SCREEN_HEIGHT = BOARD_HEIGHT * BLOCK_SIZE
+
+# 색상 정의
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GRAY = (128, 128, 128)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 
-# 테트리스 조각 모양
+# 테트리스 블록의 모양 정의
 SHAPES = [
-    [[1, 1, 1, 1]],  # 직선
-    [[1, 1, 1], [0, 1, 0]],  # T자형
-    [[1, 1, 0], [0, 1, 1]],  # Z자형
-    [[0, 1, 1], [1, 1, 0]],  # 반대 Z자형
-    [[1, 1], [1, 1]]  # 네모
+    [[1, 1, 1],
+     [0, 1, 0]],
+
+    [[0, 2, 2],
+     [2, 2, 0]],
+
+    [[3, 3],
+     [3, 3]],
+
+    [[4, 0, 0],
+     [4, 4, 4]],
+
+    [[0, 0, 5],
+     [5, 5, 5]],
+
+    [[6, 6, 0],
+     [0, 6, 6]],
+
+    [[7, 7, 7, 7]]
 ]
 
-# 테트리스 조각 색상
-COLORS = [
-    (255, 0, 0),  # 빨강
-    (0, 255, 0),  # 초록
-    (0, 0, 255),  # 파랑
-    (255, 255, 0),  # 노랑
-    (255, 165, 0)  # 주황
+# 테트리스 블록 색상 매핑
+SHAPE_COLORS = [
+    WHITE,
+    RED,
+    GREEN,
+    BLUE,
+    WHITE,
+    RED,
+    GREEN,
+    BLUE
 ]
 
-# 테트리스 보드 초기화
-def create_board():
-    return [[0] * BOARD_WIDTH for _ in range(BOARD_HEIGHT)]
+# 테트리스 게임 클래스 정의
+class TetrisGame:
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("Tetris Game")
+        self.clock = pygame.time.Clock()
+        self.board = [[0] * BOARD_WIDTH for _ in range(BOARD_HEIGHT)]
+        self.current_shape = self.new_shape()
+        self.game_over = False
 
-# 새로운 블록 생성
-def new_block():
-    shape = random.choice(SHAPES)
-    color = random.choice(COLORS)
-    return shape, color, 0, 3
+    def new_shape(self):
+        shape = random.choice(SHAPES)
+        color = SHAPE_COLORS[SHAPES.index(shape)]
+        return {'shape': shape, 'color': color, 'x': BOARD_WIDTH // 2 - len(shape[0]) // 2, 'y': 0}
 
-# 블록을 보드에 그리기
-def draw_block(screen, block, offset_x, offset_y):
-    shape, color, x, y = block
-    for i in range(len(shape)):
-        for j in range(len(shape[i])):
-            if shape[i][j]:
-                pygame.draw.rect(screen, color, pygame.Rect((offset_x + j) * BLOCK_SIZE, (offset_y + i) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE))
-                pygame.draw.rect(screen, BLACK, pygame.Rect((offset_x + j) * BLOCK_SIZE, (offset_y + i) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE), 1)
+    def draw_board(self):
+        self.screen.fill(BLACK)
+        for y, row in enumerate(self.board):
+            for x, block in enumerate(row):
+                if block:
+                    pygame.draw.rect(self.screen, SHAPE_COLORS[block - 1], (x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE))
+        pygame.display.update()
 
-# 충돌 감지
-# 충돌 감지
-def collide(board, block):
-    shape, _, x, y = block
-    for i in range(len(shape)):
-        for j in range(len(shape[i])):
-            if shape[i][j]:
-                if (
-                    x + j < 0
-                    or x + j >= BOARD_WIDTH
-                    or y + i >= BOARD_HEIGHT
-                    or board[y + i][x + j] != 0
-                ):
-                    return True
-    return False
+    def draw_shape(self):
+        shape = self.current_shape['shape']
+        color = self.current_shape['color']
+        x, y = self.current_shape['x'], self.current_shape['y']
+        for row_idx, row in enumerate(shape):
+            for col_idx, block in enumerate(row):
+                if block:
+                    pygame.draw.rect(self.screen, color, ((x + col_idx) * BLOCK_SIZE, (y + row_idx) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE))
 
-# 블록을 보드에 추가
-def add_to_board(board, block):
-    shape, _, x, y = block
-    for i in range(len(shape)):
-        for j in range(len(shape[i])):
-            if shape[i][j]:
-                board[i + y][j + x] = 1
+    def move_shape(self, dx, dy):
+        if not self.check_collision(self.current_shape, dx, dy):
+            self.current_shape['x'] += dx
+            self.current_shape['y'] += dy
+        else:
+            if dy:
+                self.merge_shape()
+                self.current_shape = self.new_shape()
+                if self.check_collision(self.current_shape, 0, 0):
+                    self.game_over = True
 
-# 줄 삭제
-def remove_row(board, row):
-    del board[row]
-    return [[0] * BOARD_WIDTH] + board
+    def rotate_shape(self):
+        rotated_shape = [list(reversed(row)) for row in zip(*self.current_shape['shape'])]
+        if not self.check_collision({'shape': rotated_shape, 'x': self.current_shape['x'], 'y': self.current_shape['y']}):
+            self.current_shape['shape'] = rotated_shape
 
-# 보드에서 완전한 줄 삭제
-def remove_complete_rows(board):
-    complete_rows = [i for i, row in enumerate(board) if all(row)]
-    for row in complete_rows:
-        board = remove_row(board, row)
-    return board, len(complete_rows)
+    def merge_shape(self):
+        for row_idx, row in enumerate(self.current_shape['shape']):
+            for col_idx, block in enumerate(row):
+                if block:
+                    self.board[self.current_shape['y'] + row_idx][self.current_shape['x'] + col_idx] = block
 
-# 메인 함수
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("테트리스")
+    def check_collision(self, shape, dx=0, dy=0):
+        for row_idx, row in enumerate(shape['shape']):
+            for col_idx, block in enumerate(row):
+                if block:
+                    x = shape['x'] + col_idx + dx
+                    y = shape['y'] + row_idx + dy
+                    if not (0 <= x < BOARD_WIDTH and 0 <= y < BOARD_HEIGHT) or self.board[y][x]:
+                        return True
+        return False
 
-    clock = pygame.time.Clock()
-    board = create_board()
-    game_over = False
+    def clear_lines(self):
+        lines_to_clear = [idx for idx, row in enumerate(self.board) if all(row)]
+        for idx in lines_to_clear:
+            del self.board[idx]
+            self.board.insert(0, [0] * BOARD_WIDTH)
 
-    current_block = new_block()
-    next_block = new_block()
+    def run(self):
+        while not self.game_over:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        self.move_shape(-1, 0)
+                    elif event.key == pygame.K_RIGHT:
+                        self.move_shape(1, 0)
+                    elif event.key == pygame.K_DOWN:
+                        self.move_shape(0, 1)
+                    elif event.key == pygame.K_UP:
+                        self.rotate_shape()
 
-    while not game_over:
-        screen.fill(WHITE)
+            self.move_shape(0, 1)
+            self.clear_lines()
+            self.draw_board()
+            self.draw_shape()
+            pygame.display.update()
+            self.clock.tick(10)
 
-        # 현재 블록 그리기
-        draw_block(screen, current_block, 0, 0)
-
-        # 보드 그리기
-        for y in range(BOARD_HEIGHT):
-            for x in range(BOARD_WIDTH):
-                if board[y][x]:
-                    pygame.draw.rect(screen, GRAY, pygame.Rect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE))
-                    pygame.draw.rect(screen, BLACK, pygame.Rect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE), 1)
-
-        pygame.display.flip()
-
-        # 블록 이동 및 회전
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            current_block = (current_block[0], current_block[1], current_block[2] - 1, current_block[3])
-            if collide(board, current_block):
-                current_block = (current_block[0], current_block[1], current_block[2] + 1, current_block[3])
-        if keys[pygame.K_RIGHT]:
-            current_block = (current_block[0], current_block[1], current_block[2] + 1, current_block[3])
-            if collide(board, current_block):
-                current_block = (current_block[0], current_block[1], current_block[2] - 1, current_block[3])
-        if keys[pygame.K_DOWN]:
-            current_block = (current_block[0], current_block[1], current_block[2], current_block[3] + 1)
-            if collide(board, current_block):
-                current_block = (current_block[0], current_block[1], current_block[2], current_block[3] - 1)
-        if keys[pygame.K_UP]:
-            rotated_shape = list(zip(*current_block[0][::-1]))
-            current_block = (rotated_shape, current_block[1], current_block[2], current_block[3])
-            if collide(board, current_block):
-                rotated_shape = list(zip(*rotated_shape[::-1]))
-                current_block = (rotated_shape, current_block[1], current_block[2], current_block[3])
-
-        # 중력 적용
-        if not keys[pygame.K_DOWN]:
-            current_block = (current_block[0], current_block[1], current_block[2], current_block[3] + 1)
-            if collide(board, current_block):
-                current_block = new_block()
-                board = add_to_board(board, current_block)
-                board, num_rows_removed = remove_complete_rows(board)
-
-        # 게임 종료
-        if any(board[0]):
-            game_over = True
-
-        clock.tick(FPS)
-
-    pygame.quit()
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    game = TetrisGame()
+    game.run()
